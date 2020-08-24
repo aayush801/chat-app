@@ -14,7 +14,25 @@ const sidebarTemplate = document.querySelector('#sidebar-template').innerHTML
 
 
 //Options
-const {username, room} = Qs.parse(location.search, {ignoreQueryPrefix : true})
+const { username, createRoom, joinRoom } = Qs.parse(location.search, { ignoreQueryPrefix: true })
+
+// check joining choice
+const roomCheck = () =>{
+
+    console.log(createRoom);
+    console.log(joinRoom);
+
+    if(createRoom && joinRoom){
+        alert("Create a room OR select an existing one")
+        location.href = '/'
+        return
+    }
+
+    return createRoom ? createRoom : joinRoom
+}
+
+const room = roomCheck()
+console.log('room', room);
 
 const autoscroll = () => {
     // New message element

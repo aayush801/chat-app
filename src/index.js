@@ -8,8 +8,11 @@ const {
     getUsersInRoom,
     getUser,
     addUser,
-    removeUser
+    removeUser,
+    getUsers
 } = require('../src/utils/users')
+
+const {addRoom, removeRoom, getAllRooms} = require('../src/utils/rooms')
 
 const port = process.env.PORT || 3000
 
@@ -23,23 +26,28 @@ app.use(express.static(publicDirectoryPath));
 let count = 0;
 
 io.on('connection', (socket) => {
-
-    socket.emit('message', generateMessage('Welcome !'))
+    const emoji = String.fromCodePoint(0x1F600)
+    socket.emit('message', generateMessage(`Welcome ! ${emoji}`))
 
     socket.on('join', ({username, room}, callback) => {
         const {error, user} = addUser({id: socket.id, username, room})
 
         if (error) {
-           return callback(error)
+            return callback(error)
         }
-        socket.join(room);
-        socket.broadcast.to(room).emit('message', generateMessage(`${username} has joined !`, ''))
+        addRoom(user.room)
+        socket.join(user.room);
+        socket.broadcast.to(user.room).emit('message', generateMessage(`${user.username} has joined !`, ''))
 
-        io.to(room).emit('roomData',{
-            room,
-            usersInRoom : getUsersInRoom(room)
+        io.to(user.room).emit('roomData', {
+            room: user.room,
+            usersInRoom: getUsersInRoom(user.room)
         })
         callback();
+    })
+
+    socket.on('roomsListQuery', () => {
+        socket.emit('roomsList', getAllRooms())
     })
 
     socket.on('sendMessage', (message, callback) => {
@@ -54,18 +62,21 @@ io.on('connection', (socket) => {
 
     socket.on('coordinates', (coords, callback) => {
         const User = getUser(socket.id)
-        io.to(User.room).emit('location-message', generateLocationMessage(`https://google.com/maps?g=${coords.latitude},${coords.longitude}`,User.username))
+        io.to(User.room).emit('location-message', generateLocationMessage(`https://google.com/maps?g=${coords.latitude},${coords.longitude}`, User.username))
         callback();
     })
 
 
     socket.on('disconnect', () => {
         const user = removeUser(socket.id)
-        if(user){
+        if (user) {
             io.to(user.room).emit('message', generateMessage(`${user.username} has disconnected`, ''))
-            io.to(user.room).emit('roomData',{
-                room : user.room,
-                usersInRoom : getUsersInRoom(user.room)
+
+            removeRoom(user.room)
+
+            io.to(user.room).emit('roomData', {
+                room: user.room,
+                usersInRoom: getUsersInRoom(user.room)
             })
         }
 
